@@ -1,0 +1,2112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EKAI - Student & School Management Platform</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f9fafb;
+    }
+    .text-primary { color: #1E40AF; }
+    .bg-primary { background-color: #1E40AF; }
+    .text-secondary { color: #0F766E; }
+    .bg-secondary { background-color: #0F766E; }
+    .text-accent { color: #F59E0B; }
+    .bg-accent { background-color: #F59E0B; }
+    .badge-success { background-color: #d1fae5; color: #065f46; }
+    .badge-warning { background-color: #fef3c7; color: #92400e; }
+    .badge-danger { background-color: #fee2e2; color: #991b1b; }
+    .badge-info { background-color: #dbeafe; color: #1e40af; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .calendar-day { min-height: 60px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px; }
+    .calendar-day.present { background-color: #d1fae5; }
+    .calendar-day.absent { background-color: #fee2e2; }
+    .calendar-day.late { background-color: #fef3c7; }
+    .calendar-day.holiday { background-color: #e5e7eb; }
+    .modal-overlay { background: rgba(0, 0, 0, 0.5); }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 16px 24px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 9999;
+    }
+    .attendance-toggle {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .status-button {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 2px solid #e5e7eb;
+      background: white;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .status-button.present {
+      background: #d1fae5;
+      border-color: #6ee7b7;
+      color: #065f46;
+    }
+    .status-button.absent {
+      background: #fee2e2;
+      border-color: #fca5a5;
+      color: #991b1b;
+    }
+    .status-button.late {
+      background: #fef3c7;
+      border-color: #fde047;
+      color: #92400e;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+const { useState, useReducer, useContext, createContext } = React;
+
+// ============================================================================
+// CONSTANTS & MOCK DATA
+// ============================================================================
+
+const STUDENT_NAMES = [
+  'Aarav Sharma', 'Priya Verma', 'Rohan Gupta', 'Ananya Singh', 'Arjun Patel',
+  'Diya Reddy', 'Vikram Kumar', 'Neha Desai', 'Aditya Nair', 'Shreya Iyer',
+  'Rahul Menon', 'Pooja Kulkarni', 'Sanjay Mishra', 'Ravi Chopra', 'Meera Das',
+  'Amit Joshi', 'Tina Sharma', 'Karan Malhotra', 'Sneha Saxena', 'Varun Bhat',
+  'Zara Khan', 'Nikhil Rao', 'Divya Banerjee', 'Siddharth Dubey', 'Priyanka Nag',
+  'Aryan Sinha', 'Sakshi Pandey', 'Harsh Agarwal', 'Anjali Bose', 'Yash Yadav'
+];
+
+const TEACHER_NAMES = [
+  'Dr. Ramesh Kumar', 'Ms. Priya Sharma', 'Mr. Rajesh Singh', 'Mrs. Anjali Patel',
+  'Mr. Vikram Reddy', 'Dr. Meera Gupta', 'Mr. Arun Nair', 'Ms. Divya Iyer',
+  'Mr. Sanjay Das', 'Mrs. Kavya Menon'
+];
+
+const SUBJECTS = ['Mathematics', 'Physics', 'Chemistry', 'English', 'Hindi', 'Computer Science', 'Biology', 'History'];
+const CLASSES = ['9-A', '9-B', '9-C', '10-A', '10-B', '10-C'];
+const SECTIONS = ['A', 'B', 'C'];
+
+const generateAPAARId = () => `${Math.floor(Math.random() * 9000 + 1000)}-${Math.floor(Math.random() * 9000 + 1000)}-${Math.floor(Math.random() * 9000 + 1000)}`;
+
+const INITIAL_STATE = {
+  currentUser: null,
+  userType: null, // 'student' or 'school'
+  students: STUDENT_NAMES.slice(0, 30).map((name, idx) => ({
+    id: idx + 1,
+    name,
+    apaarId: generateAPAARId(),
+    class: CLASSES[Math.floor(idx / 5)],
+    section: SECTIONS[idx % 3],
+    rollNo: idx + 1,
+    bloodGroup: ['A+', 'B+', 'O+', 'AB+', 'A-', 'B-', 'O-'][Math.floor(Math.random() * 7)],
+    attendance: 94.2 + (Math.random() - 0.5) * 5,
+    gpa: 7.5 + Math.random() * 2,
+    guardianFather: `Mr. ${name.split(' ')[1]} Sr.`,
+    guardianMother: `Mrs. ${name.split(' ')[1]} Sharma`,
+    phone: `9${Math.floor(Math.random() * 1000000000).toString().padStart(9, '0')}`,
+    email: `${name.toLowerCase().replace(/\s+/g, '.')}@example.com`
+  })),
+  teachers: TEACHER_NAMES.map((name, idx) => ({
+    id: idx + 1,
+    name,
+    employeeId: `EMP${String(1000 + idx).padStart(5, '0')}`,
+    subjects: [SUBJECTS[idx % SUBJECTS.length], SUBJECTS[(idx + 1) % SUBJECTS.length]],
+    classesAssigned: [CLASSES[idx % CLASSES.length]],
+    phone: `9${Math.floor(Math.random() * 1000000000).toString().padStart(9, '0')}`,
+    status: Math.random() > 0.1 ? 'Active' : 'Inactive'
+  })),
+  assessments: [
+    { id: 1, title: 'Mathematics Unit Test 2', subject: 'Mathematics', class: '10-A', type: 'FA', maxMarks: 50, date: '2026-03-20', status: 'completed' },
+    { id: 2, title: 'Physics Half Yearly', subject: 'Physics', class: '10-A', type: 'SA', maxMarks: 100, date: '2026-03-25', status: 'active' },
+    { id: 3, title: 'Chemistry Quiz', subject: 'Chemistry', class: '10-A', type: 'FA', maxMarks: 20, date: '2026-03-18', status: 'completed' },
+    { id: 4, title: 'English Essay', subject: 'English', class: '10-A', type: 'FA', maxMarks: 30, date: '2026-03-22', status: 'active' },
+    { id: 5, title: 'Hindi Comprehension', subject: 'Hindi', class: '9-A', type: 'FA', maxMarks: 25, date: '2026-03-19', status: 'completed' },
+    { id: 6, title: 'CS Programming', subject: 'Computer Science', class: '10-A', type: 'FA', maxMarks: 40, date: '2026-03-24', status: 'active' },
+    { id: 7, title: 'Biology Practical', subject: 'Biology', class: '9-B', type: 'FA', maxMarks: 35, date: '2026-03-21', status: 'completed' },
+    { id: 8, title: 'History Unit Test', subject: 'History', class: '10-B', type: 'FA', maxMarks: 30, date: '2026-03-23', status: 'active' },
+  ],
+  grades: {},
+  attendance: {},
+  documents: [],
+  consents: [],
+  notifications: [],
+  calendarEvents: [],
+  enrollmentForm: null
+};
+
+// Initialize grades
+Object.keys(INITIAL_STATE.students).forEach(idx => {
+  INITIAL_STATE.grades[INITIAL_STATE.students[idx].id] = [
+    { subject: 'Mathematics', marks: 92, assessment: 'Unit Test', date: '2026-03-15', grade: 'A1' },
+    { subject: 'Physics', marks: 85, assessment: 'Quiz', date: '2026-03-14', grade: 'A2' },
+    { subject: 'Chemistry', marks: 88, assessment: 'Unit Test', date: '2026-03-12', grade: 'A1' },
+    { subject: 'English', marks: 91, assessment: 'Essay', date: '2026-03-10', grade: 'A1' },
+    { subject: 'Hindi', marks: 78, assessment: 'Comprehension', date: '2026-03-08', grade: 'B1' },
+  ];
+});
+
+// Initialize attendance
+const currentDate = new Date('2026-03-24');
+const monthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+INITIAL_STATE.students.forEach(student => {
+  const daysData = {};
+  for (let day = 1; day <= monthDays; day++) {
+    const rand = Math.random();
+    daysData[day] = rand < 0.02 ? 'holiday' : rand < 0.05 ? 'absent' : rand < 0.08 ? 'late' : 'present';
+  }
+  INITIAL_STATE.attendance[student.id] = daysData;
+});
+
+// Initialize documents
+INITIAL_STATE.documents = [
+  { id: 1, name: 'Class 10 Marksheet', type: 'Marksheet', date: '2026-03-20', size: '1.2 MB', apaarPushed: false },
+  { id: 2, name: 'Transfer Certificate', type: 'Certificate', date: '2026-03-15', size: '456 KB', apaarPushed: true },
+  { id: 3, name: 'Character Certificate', type: 'Certificate', date: '2026-03-10', size: '234 KB', apaarPushed: false },
+  { id: 4, name: 'APAAR ID Card', type: 'ID', date: '2026-02-28', size: '567 KB', apaarPushed: true },
+  { id: 5, name: 'Aadhar Linked ID', type: 'ID', date: '2026-02-14', size: '789 KB', apaarPushed: true },
+];
+
+// Initialize consents
+INITIAL_STATE.consents = [
+  { id: 1, organization: 'Delhi Public School', scope: 'full_profile', grantedDate: '2026-01-15', status: 'active' },
+  { id: 2, organization: 'Career Counselor App', scope: 'academic_summary', grantedDate: '2026-02-01', status: 'active' },
+  { id: 3, organization: 'Scholarship Portal', scope: 'basic_identity', grantedDate: '2026-02-20', status: 'active' },
+];
+
+// Initialize notifications
+INITIAL_STATE.notifications = [
+  { id: 1, title: 'Your Math assessment marks are published', time: '2 hours ago', read: false },
+  { id: 2, title: 'Attendance marked for today', time: '5 hours ago', read: false },
+  { id: 3, title: 'New consent request from Scholarship Portal', time: '1 day ago', read: true },
+  { id: 4, title: 'Parent-Teacher meeting on March 28', time: '2 days ago', read: true },
+];
+
+// Initialize calendar events
+INITIAL_STATE.calendarEvents = [
+  { id: 1, title: 'Math Exam', type: 'exam', date: 5, color: 'red' },
+  { id: 2, title: 'Science Fair', type: 'event', date: 8, color: 'blue' },
+  { id: 3, title: 'Holi Holiday', type: 'holiday', date: 12, color: 'green' },
+  { id: 4, title: 'Class Council Elections', type: 'event', date: 15, color: 'blue' },
+  { id: 5, title: 'English Presentation', type: 'exam', date: 18, color: 'red' },
+  { id: 6, title: 'Sports Day', type: 'event', date: 22, color: 'yellow' },
+  { id: 7, title: 'Parent-Teacher Meet', type: 'meeting', date: 28, color: 'yellow' },
+  { id: 8, title: 'Project Submission', type: 'exam', date: 30, color: 'red' },
+];
+
+// ============================================================================
+// STATE REDUCER
+// ============================================================================
+
+function appReducer(state, action) {
+  switch (action.type) {
+    case 'LOGIN':
+      return {
+        ...state,
+        currentUser: action.payload.user,
+        userType: action.payload.userType
+      };
+    case 'LOGOUT':
+      return { ...state, currentUser: null, userType: null };
+    case 'MARK_ATTENDANCE':
+      return {
+        ...state,
+        attendance: {
+          ...state.attendance,
+          [action.payload.studentId]: {
+            ...state.attendance[action.payload.studentId],
+            [action.payload.day]: action.payload.status
+          }
+        }
+      };
+    case 'SAVE_GRADES':
+      return {
+        ...state,
+        grades: {
+          ...state.grades,
+          [action.payload.assessmentId]: action.payload.studentGrades
+        }
+      };
+    case 'ADD_STUDENT':
+      return {
+        ...state,
+        students: [...state.students, action.payload]
+      };
+    case 'ADD_ASSESSMENT':
+      return {
+        ...state,
+        assessments: [...state.assessments, action.payload]
+      };
+    case 'ADD_EVENT':
+      return {
+        ...state,
+        calendarEvents: [...state.calendarEvents, action.payload]
+      };
+    case 'REVOKE_CONSENT':
+      return {
+        ...state,
+        consents: state.consents.filter(c => c.id !== action.payload)
+      };
+    case 'PUSH_TO_DIGILOCKER':
+      return {
+        ...state,
+        documents: state.documents.map(d =>
+          d.id === action.payload ? { ...d, apaarPushed: true } : d
+        )
+      };
+    case 'MARK_NOTIFICATION_READ':
+      return {
+        ...state,
+        notifications: state.notifications.map(n =>
+          n.id === action.payload ? { ...n, read: true } : n
+        )
+      };
+    default:
+      return state;
+  }
+}
+
+// ============================================================================
+// SHARED COMPONENTS
+// ============================================================================
+
+function Card({ children, className = '' }) {
+  return <div className={`bg-white rounded-lg shadow-sm border border-gray-100 ${className}`}>{children}</div>;
+}
+
+function Badge({ children, variant = 'gray', className = '' }) {
+  const variants = {
+    success: 'badge-success',
+    warning: 'badge-warning',
+    danger: 'badge-danger',
+    info: 'badge-info',
+    gray: 'bg-gray-100 text-gray-800'
+  };
+  return <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${variants[variant]} ${className}`}>{children}</span>;
+}
+
+function Modal({ isOpen, onClose, title, children, size = 'md' }) {
+  if (!isOpen) return null;
+  const sizes = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-xl' };
+  return (
+    <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50">
+      <Card className={`${sizes[size]} w-full mx-4`}>
+        <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div className="px-6 py-4">{children}</div>
+      </Card>
+    </div>
+  );
+}
+
+function Toast({ message, type = 'success' }) {
+  return (
+    <div className={`toast ${type === 'success' ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-blue-500'}`}>
+      <p className="text-sm font-medium">{message}</p>
+    </div>
+  );
+}
+
+function Button({ children, onClick, variant = 'primary', disabled = false, className = '', ...props }) {
+  const variants = {
+    primary: 'bg-primary hover:bg-blue-700 text-white',
+    secondary: 'bg-secondary hover:bg-teal-700 text-white',
+    outline: 'border-2 border-gray-300 text-gray-700 hover:bg-gray-50',
+    danger: 'bg-red-500 hover:bg-red-600 text-white',
+    ghost: 'text-primary hover:bg-blue-50'
+  };
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`px-4 py-2 rounded-lg font-medium transition-colors ${variants[variant]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+function IconButton({ icon: Icon, onClick, className = '', title = '' }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${className}`}
+    >
+      <Icon size={20} />
+    </button>
+  );
+}
+
+function StatCard({ label, value, icon: Icon, color = 'blue' }) {
+  const colors = {
+    blue: 'bg-blue-50 text-primary',
+    green: 'bg-green-50 text-green-600',
+    orange: 'bg-orange-50 text-orange-600',
+    purple: 'bg-purple-50 text-purple-600'
+  };
+  return (
+    <Card className="p-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-gray-600 text-sm font-medium">{label}</p>
+          <p className="text-2xl font-bold mt-2">{value}</p>
+        </div>
+        <div className={`${colors[color]} p-3 rounded-lg`}>
+          <Icon size={24} />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ============================================================================
+// STUDENT HUB COMPONENTS
+// ============================================================================
+
+function StudentDashboard({ state }) {
+  const currentStudent = state.students[0];
+  const grades = state.grades[currentStudent.id] || [];
+  const presentDays = Object.values(state.attendance[currentStudent.id] || {}).filter(s => s === 'present').length;
+  const totalDays = Object.keys(state.attendance[currentStudent.id] || {}).length;
+  const attendancePercent = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(1) : '0';
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold">Welcome back, {currentStudent.name}</h1>
+          <Badge variant="info">APAAR {currentStudent.apaarId}</Badge>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <StatCard label="Attendance" value={`${attendancePercent}%`} icon={() => <span>📊</span>} color="green" />
+        <StatCard label="GPA" value="8.7" icon={() => <span>📈</span>} color="blue" />
+        <StatCard label="Documents" value="5" icon={() => <span>📄</span>} color="orange" />
+        <StatCard label="Active Consents" value="3" icon={() => <span>🔐</span>} color="purple" />
+      </div>
+
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4">Recent Grades</h2>
+        <div className="space-y-3">
+          {grades.map((grade, idx) => (
+            <div key={idx} className="flex justify-between items-center pb-3 border-b border-gray-100 last:border-b-0">
+              <div>
+                <p className="font-medium">{grade.subject}</p>
+                <p className="text-sm text-gray-500">{grade.assessment}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-semibold">{grade.marks}/100</p>
+                <Badge variant="success">{grade.grade}</Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4">Upcoming Events</h2>
+        <div className="space-y-2">
+          <div className="flex gap-3 pb-3 border-b border-gray-100">
+            <div className="text-2xl">📝</div>
+            <div><p className="font-medium">Math Exam</p><p className="text-sm text-gray-500">March 5, 2026</p></div>
+          </div>
+          <div className="flex gap-3 pb-3 border-b border-gray-100">
+            <div className="text-2xl">🎨</div>
+            <div><p className="font-medium">Science Fair</p><p className="text-sm text-gray-500">March 8, 2026</p></div>
+          </div>
+          <div className="flex gap-3">
+            <div className="text-2xl">🏃</div>
+            <div><p className="font-medium">Sports Day</p><p className="text-sm text-gray-500">March 22, 2026</p></div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function StudentAcademics({ state }) {
+  const currentStudent = state.students[0];
+  const subjectGrades = [
+    { subject: 'Mathematics', marks: 92, maxMarks: 100, grade: 'A1' },
+    { subject: 'Physics', marks: 85, maxMarks: 100, grade: 'A2' },
+    { subject: 'Chemistry', marks: 88, maxMarks: 100, grade: 'A1' },
+    { subject: 'English', marks: 91, maxMarks: 100, grade: 'A1' },
+    { subject: 'Hindi', marks: 78, maxMarks: 100, grade: 'B1' },
+    { subject: 'Computer Science', marks: 95, maxMarks: 100, grade: 'A1' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">My Academics</h1>
+
+      <Card className="p-6">
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <p className="font-semibold">Current Semester GPA</p>
+            <p className="text-2xl font-bold text-primary">8.7</p>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="bg-primary h-3 rounded-full" style={{ width: '87%' }}></div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Subject</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Marks</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Grade</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {subjectGrades.map((item, idx) => (
+              <tr key={idx} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm">{item.subject}</td>
+                <td className="px-4 py-3 text-sm font-medium">{item.marks}/{item.maxMarks}</td>
+                <td className="px-4 py-3 text-sm"><Badge variant="success">{item.grade}</Badge></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card className="p-6">
+        <p className="text-sm text-gray-600">
+          <span className="font-semibold">Semester Selector:</span> Semester 1 (Current) | <span className="text-gray-400">Semester 2</span>
+        </p>
+      </Card>
+    </div>
+  );
+}
+
+function StudentAttendance({ state }) {
+  const currentStudent = state.students[0];
+  const attendanceData = state.attendance[currentStudent.id] || {};
+  const currentDate = new Date('2026-03-24');
+  const monthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+
+  const stats = {
+    present: Object.values(attendanceData).filter(s => s === 'present').length,
+    absent: Object.values(attendanceData).filter(s => s === 'absent').length,
+    late: Object.values(attendanceData).filter(s => s === 'late').length,
+    holiday: Object.values(attendanceData).filter(s => s === 'holiday').length
+  };
+
+  const daysInWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Attendance</h1>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="badge-success p-4 rounded-lg">
+          <p className="text-xs text-gray-600 font-medium">Present</p>
+          <p className="text-2xl font-bold">{stats.present}</p>
+        </div>
+        <div className="badge-danger p-4 rounded-lg">
+          <p className="text-xs text-gray-600 font-medium">Absent</p>
+          <p className="text-2xl font-bold">{stats.absent}</p>
+        </div>
+        <div className="badge-warning p-4 rounded-lg">
+          <p className="text-xs text-gray-600 font-medium">Late</p>
+          <p className="text-2xl font-bold">{stats.late}</p>
+        </div>
+        <div className="bg-gray-100 p-4 rounded-lg">
+          <p className="text-xs text-gray-600 font-medium">Holiday</p>
+          <p className="text-2xl font-bold">{stats.holiday}</p>
+        </div>
+      </div>
+
+      <Card className="p-6">
+        <p className="text-center font-semibold text-lg mb-4">Attendance: {((stats.present / (monthDays - stats.holiday)) * 100).toFixed(1)}%</p>
+        <div className="mb-2 flex gap-1 justify-between text-xs font-medium">
+          {daysInWeek.map(d => <div key={d} className="w-[40px] text-center">{d}</div>)}
+        </div>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+          {Array.from({ length: firstDay }).map((_, idx) => <div key={`empty-${idx}`} className="h-10"></div>)}
+          {Array.from({ length: monthDays }).map((_, day) => {
+            const status = attendanceData[day + 1] || 'present';
+            const colors = { present: 'bg-green-200', absent: 'bg-red-200', late: 'bg-yellow-200', holiday: 'bg-gray-200' };
+            return (
+              <div key={day} className={`h-10 flex items-center justify-center rounded text-xs font-semibold ${colors[status]}`}>
+                {day + 1}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function StudentDocuments({ state, dispatch }) {
+  const [uploadModal, setUploadModal] = useState(false);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Documents</h1>
+        <Button onClick={() => setUploadModal(true)} variant="primary" className="text-sm">
+          Upload Document
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {state.documents.map(doc => (
+          <Card key={doc.id} className="p-4">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="font-semibold">{doc.name}</p>
+                <p className="text-xs text-gray-500 mt-1">{doc.date} • {doc.size}</p>
+              </div>
+              <div className="flex gap-2">
+                {!doc.apaarPushed ? (
+                  <Button
+                    onClick={() => dispatch({ type: 'PUSH_TO_DIGILOCKER', payload: doc.id })}
+                    variant="outline"
+                    className="text-xs px-2 py-1"
+                  >
+                    Push to DigiLocker
+                  </Button>
+                ) : (
+                  <Badge variant="success">Pushed to DigiLocker</Badge>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <Modal isOpen={uploadModal} onClose={() => setUploadModal(false)} title="Upload Document">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Document Type</label>
+            <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <option>Marksheet</option>
+              <option>Certificate</option>
+              <option>ID</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setUploadModal(false)} className="flex-1">Cancel</Button>
+            <Button variant="primary" onClick={() => setUploadModal(false)} className="flex-1">Upload</Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+function StudentConsents({ state, dispatch }) {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Consent Manager</h1>
+
+      <div className="space-y-3">
+        {state.consents.map(consent => (
+          <Card key={consent.id} className="p-4">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="font-semibold">{consent.organization}</p>
+                <p className="text-xs text-gray-500 mt-1">Scope: {consent.scope}</p>
+                <p className="text-xs text-gray-400">Granted: {consent.grantedDate}</p>
+              </div>
+              <Button
+                onClick={() => dispatch({ type: 'REVOKE_CONSENT', payload: consent.id })}
+                variant="danger"
+                className="text-xs px-2 py-1"
+              >
+                Revoke
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <Button variant="primary" className="w-full">Grant New Consent</Button>
+    </div>
+  );
+}
+
+function StudentProfile({ state }) {
+  const student = state.students[0];
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">My Profile</h1>
+
+      <Card className="p-6">
+        <div className="text-center mb-6">
+          <Badge variant="info" className="mb-4">APAAR ID VERIFIED</Badge>
+          <p className="text-2xl font-bold text-primary mb-2">{student.apaarId}</p>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="font-semibold mb-4">Personal Information</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600 text-sm">Name</p>
+            <p className="font-medium">{student.name}</p>
+          </div>
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600 text-sm">Date of Birth</p>
+            <p className="font-medium">15 Jan 2010</p>
+          </div>
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600 text-sm">Class</p>
+            <p className="font-medium">{student.class}</p>
+          </div>
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600 text-sm">Section</p>
+            <p className="font-medium">{student.section}</p>
+          </div>
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600 text-sm">Roll No</p>
+            <p className="font-medium">{student.rollNo}</p>
+          </div>
+          <div className="flex justify-between">
+            <p className="text-gray-600 text-sm">Blood Group</p>
+            <p className="font-medium">{student.bloodGroup}</p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="font-semibold mb-4">Guardian Information</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600 text-sm">Father's Name</p>
+            <p className="font-medium">{student.guardianFather}</p>
+          </div>
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600 text-sm">Mother's Name</p>
+            <p className="font-medium">{student.guardianMother}</p>
+          </div>
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600 text-sm">Phone</p>
+            <p className="font-medium">{student.phone}</p>
+          </div>
+          <div className="flex justify-between">
+            <p className="text-gray-600 text-sm">Email</p>
+            <p className="font-medium text-sm">{student.email}</p>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function StudentNotifications({ state, dispatch }) {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Notifications</h1>
+
+      <div className="space-y-2">
+        {state.notifications.map(notif => (
+          <Card
+            key={notif.id}
+            className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${!notif.read ? 'border-l-4 border-l-primary' : ''}`}
+            onClick={() => dispatch({ type: 'MARK_NOTIFICATION_READ', payload: notif.id })}
+          >
+            <div className="flex gap-3">
+              <div className="text-2xl mt-1">📢</div>
+              <div className="flex-1">
+                <p className={`${!notif.read ? 'font-semibold' : 'font-medium'}`}>{notif.title}</p>
+                <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
+              </div>
+              {!notif.read && <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>}
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// SCHOOL HUB COMPONENTS
+// ============================================================================
+
+function SchoolDashboard({ state }) {
+  const totalStudents = state.students.length;
+  const totalTeachers = state.teachers.length;
+  const avgAttendance = (state.students.reduce((sum, s) => {
+    const attendance = state.attendance[s.id] || {};
+    const presented = Object.values(attendance).filter(st => st === 'present').length;
+    const total = Object.keys(attendance).length;
+    return sum + (total > 0 ? presented / total : 0);
+  }, 0) / totalStudents * 100).toFixed(1);
+
+  const attendanceTrend = [89, 91, 88, 92, 90, 93, 92];
+  const maxTrend = Math.max(...attendanceTrend);
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">School Dashboard</h1>
+
+      <div className="grid grid-cols-2 gap-4">
+        <StatCard label="Total Students" value={totalStudents} icon={() => <span>👥</span>} color="blue" />
+        <StatCard label="Total Teachers" value={totalTeachers} icon={() => <span>🧑‍🏫</span>} color="green" />
+        <StatCard label="Today's Attendance" value={`${avgAttendance}%`} icon={() => <span>📊</span>} color="orange" />
+        <StatCard label="Active Assessments" value={state.assessments.filter(a => a.status === 'active').length} icon={() => <span>📝</span>} color="purple" />
+      </div>
+
+      <Card className="p-6">
+        <h3 className="font-semibold mb-4">Attendance Trend (Last 7 Days)</h3>
+        <div className="flex items-end gap-2 h-40">
+          {attendanceTrend.map((value, idx) => (
+            <div key={idx} className="flex-1 flex flex-col items-center">
+              <div className="text-xs text-gray-600 mb-2">{value}%</div>
+              <div className="w-full bg-primary rounded-t" style={{ height: `${(value / maxTrend) * 120}px` }}></div>
+              <div className="text-xs text-gray-600 mt-2">Day {idx + 1}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="font-semibold mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <Button variant="outline">Mark Attendance</Button>
+          <Button variant="outline">Create Assessment</Button>
+          <Button variant="outline">Enroll Student</Button>
+          <Button variant="outline">Generate Report</Button>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="font-semibold mb-4">Recent Activity</h3>
+        <div className="space-y-3">
+          <div className="flex gap-3 pb-3 border-b border-gray-100">
+            <div className="text-2xl">✅</div>
+            <div>
+              <p className="text-sm font-medium">Math attendance marked for 10-A</p>
+              <p className="text-xs text-gray-500">2 hours ago</p>
+            </div>
+          </div>
+          <div className="flex gap-3 pb-3 border-b border-gray-100">
+            <div className="text-2xl">📝</div>
+            <div>
+              <p className="text-sm font-medium">New student enrolled: Aryan Singh</p>
+              <p className="text-xs text-gray-500">4 hours ago</p>
+            </div>
+          </div>
+          <div className="flex gap-3 pb-3 border-b border-gray-100">
+            <div className="text-2xl">📊</div>
+            <div>
+              <p className="text-sm font-medium">Assessment grades published</p>
+              <p className="text-xs text-gray-500">1 day ago</p>
+            </div>
+          </div>
+          <div className="flex gap-3 pb-3 border-b border-gray-100">
+            <div className="text-2xl">👨‍🏫</div>
+            <div>
+              <p className="text-sm font-medium">New teacher added: Dr. Vikram Sharma</p>
+              <p className="text-xs text-gray-500">2 days ago</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <div className="text-2xl">🎉</div>
+            <div>
+              <p className="text-sm font-medium">Parent-teacher meeting scheduled</p>
+              <p className="text-xs text-gray-500">3 days ago</p>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SchoolStudents({ state, dispatch }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterClass, setFilterClass] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showEnrollModal, setShowEnrollModal] = useState(false);
+  const [enrollForm, setEnrollForm] = useState({ name: '', apaarId: '', class: '10-A', section: 'A', guardianName: '' });
+
+  const filtered = state.students.filter(s =>
+    (s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.apaarId.includes(searchTerm)) &&
+    (!filterClass || s.class === filterClass)
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Students</h1>
+        <Button onClick={() => setShowEnrollModal(true)} variant="primary">
+          Enroll New Student
+        </Button>
+      </div>
+
+      <Card className="p-4">
+        <div className="flex gap-3 flex-wrap">
+          <input
+            type="text"
+            placeholder="Search by name or APAAR ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 min-w-48 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <select
+            value={filterClass}
+            onChange={(e) => setFilterClass(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="">All Classes</option>
+            {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+      </Card>
+
+      <Card className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Roll No</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Name</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">APAAR ID</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Class</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Attendance %</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {filtered.map(student => (
+              <tr key={student.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm">{student.rollNo}</td>
+                <td className="px-4 py-3 text-sm font-medium">{student.name}</td>
+                <td className="px-4 py-3 text-sm">{student.apaarId}</td>
+                <td className="px-4 py-3 text-sm">{student.class}-{student.section}</td>
+                <td className="px-4 py-3 text-sm"><Badge variant="success">{student.attendance.toFixed(1)}%</Badge></td>
+                <td className="px-4 py-3 text-sm">
+                  <Button onClick={() => setSelectedStudent(student)} variant="ghost" className="text-xs">View</Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      {selectedStudent && (
+        <Modal isOpen={true} onClose={() => setSelectedStudent(null)} title={selectedStudent.name} size="lg">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-gray-600">APAAR ID</p>
+                <p className="font-semibold">{selectedStudent.apaarId}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Class</p>
+                <p className="font-semibold">{selectedStudent.class}-{selectedStudent.section}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Attendance</p>
+                <p className="font-semibold">{selectedStudent.attendance.toFixed(1)}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">GPA</p>
+                <p className="font-semibold">{selectedStudent.gpa.toFixed(2)}</p>
+              </div>
+            </div>
+            <Button variant="primary" onClick={() => setSelectedStudent(null)} className="w-full">Close</Button>
+          </div>
+        </Modal>
+      )}
+
+      <Modal isOpen={showEnrollModal} onClose={() => setShowEnrollModal(false)} title="Enroll New Student" size="lg">
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Student Name"
+            value={enrollForm.name}
+            onChange={(e) => setEnrollForm({ ...enrollForm, name: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <input
+            type="text"
+            placeholder="APAAR ID"
+            value={enrollForm.apaarId}
+            onChange={(e) => setEnrollForm({ ...enrollForm, apaarId: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <select
+            value={enrollForm.class}
+            onChange={(e) => setEnrollForm({ ...enrollForm, class: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <input
+            type="text"
+            placeholder="Guardian Name"
+            value={enrollForm.guardianName}
+            onChange={(e) => setEnrollForm({ ...enrollForm, guardianName: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowEnrollModal(false)} className="flex-1">Cancel</Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (enrollForm.name && enrollForm.apaarId && enrollForm.guardianName) {
+                  dispatch({
+                    type: 'ADD_STUDENT',
+                    payload: {
+                      id: state.students.length + 1,
+                      name: enrollForm.name,
+                      apaarId: enrollForm.apaarId,
+                      class: enrollForm.class,
+                      section: 'A',
+                      rollNo: state.students.length + 1,
+                      bloodGroup: 'A+',
+                      attendance: 95,
+                      gpa: 8.5,
+                      guardianFather: enrollForm.guardianName,
+                      guardianMother: `Mrs. ${enrollForm.guardianName.split(' ').pop()}`,
+                      phone: '9000000000',
+                      email: `${enrollForm.name.toLowerCase().replace(/\s+/g, '.')}@example.com`
+                    }
+                  });
+                  setShowEnrollModal(false);
+                  setEnrollForm({ name: '', apaarId: '', class: '10-A', section: 'A', guardianName: '' });
+                }
+              }}
+              className="flex-1"
+            >
+              Enroll
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+function SchoolTeachers({ state, dispatch }) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newTeacher, setNewTeacher] = useState({ name: '', employeeId: '', subjects: '', phone: '' });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Teachers</h1>
+        <Button onClick={() => setShowAddModal(true)} variant="primary">
+          Add Teacher
+        </Button>
+      </div>
+
+      <Card className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Name</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Employee ID</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Subjects</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Classes</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Phone</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {state.teachers.map(teacher => (
+              <tr key={teacher.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm font-medium">{teacher.name}</td>
+                <td className="px-4 py-3 text-sm">{teacher.employeeId}</td>
+                <td className="px-4 py-3 text-sm">{teacher.subjects.join(', ')}</td>
+                <td className="px-4 py-3 text-sm">{teacher.classesAssigned.join(', ')}</td>
+                <td className="px-4 py-3 text-sm">{teacher.phone}</td>
+                <td className="px-4 py-3 text-sm">
+                  <Badge variant={teacher.status === 'Active' ? 'success' : 'warning'}>
+                    {teacher.status}
+                  </Badge>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New Teacher" size="lg">
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={newTeacher.name}
+            onChange={(e) => setNewTeacher({ ...newTeacher, name: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Phone"
+            value={newTeacher.phone}
+            onChange={(e) => setNewTeacher({ ...newTeacher, phone: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Primary Subject"
+            value={newTeacher.subjects}
+            onChange={(e) => setNewTeacher({ ...newTeacher, subjects: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowAddModal(false)} className="flex-1">Cancel</Button>
+            <Button variant="primary" onClick={() => setShowAddModal(false)} className="flex-1">Add Teacher</Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+function SchoolAttendance({ state, dispatch }) {
+  const [selectedDate, setSelectedDate] = useState('2026-03-24');
+  const [selectedClass, setSelectedClass] = useState('10-A');
+  const [classAttendance, setClassAttendance] = useState({});
+
+  const studentsInClass = state.students.filter(s => s.class === selectedClass);
+
+  const handleToggle = (studentId, status) => {
+    setClassAttendance(prev => ({
+      ...prev,
+      [studentId]: prev[studentId] === status ? null : status
+    }));
+  };
+
+  const stats = {
+    present: Object.values(classAttendance).filter(s => s === 'present').length,
+    absent: Object.values(classAttendance).filter(s => s === 'absent').length,
+    late: Object.values(classAttendance).filter(s => s === 'late').length
+  };
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">Mark Attendance</h1>
+
+      <Card className="p-6">
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Date</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Class</label>
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+              {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <Button variant="primary" className="w-full">
+              Mark All Present
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="badge-success p-4 rounded-lg">
+          <p className="text-xs text-gray-600 font-medium">Present</p>
+          <p className="text-2xl font-bold">{stats.present}</p>
+        </div>
+        <div className="badge-danger p-4 rounded-lg">
+          <p className="text-xs text-gray-600 font-medium">Absent</p>
+          <p className="text-2xl font-bold">{stats.absent}</p>
+        </div>
+        <div className="badge-warning p-4 rounded-lg">
+          <p className="text-xs text-gray-600 font-medium">Late</p>
+          <p className="text-2xl font-bold">{stats.late}</p>
+        </div>
+      </div>
+
+      <Card className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Roll No</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Name</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Attendance Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {studentsInClass.map(student => (
+              <tr key={student.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm">{student.rollNo}</td>
+                <td className="px-4 py-3 text-sm font-medium">{student.name}</td>
+                <td className="px-4 py-3 text-sm">
+                  <div className="attendance-toggle">
+                    <button
+                      onClick={() => handleToggle(student.id, 'present')}
+                      className={`status-button ${classAttendance[student.id] === 'present' ? 'present' : ''}`}
+                    >
+                      Present
+                    </button>
+                    <button
+                      onClick={() => handleToggle(student.id, 'absent')}
+                      className={`status-button ${classAttendance[student.id] === 'absent' ? 'absent' : ''}`}
+                    >
+                      Absent
+                    </button>
+                    <button
+                      onClick={() => handleToggle(student.id, 'late')}
+                      className={`status-button ${classAttendance[student.id] === 'late' ? 'late' : ''}`}
+                    >
+                      Late
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Button variant="primary" className="w-full">Save Attendance</Button>
+    </div>
+  );
+}
+
+function SchoolAssessments({ state, dispatch, onSelectAssessment }) {
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newAssessment, setNewAssessment] = useState({ title: '', subject: 'Mathematics', class: '10-A', type: 'FA', maxMarks: '50', date: '' });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Assessments</h1>
+        <Button onClick={() => setShowCreateModal(true)} variant="primary">
+          Create Assessment
+        </Button>
+      </div>
+
+      <Card className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Title</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Subject</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Class</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Type</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Max Marks</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Date</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {state.assessments.map(assessment => (
+              <tr key={assessment.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm font-medium">{assessment.title}</td>
+                <td className="px-4 py-3 text-sm">{assessment.subject}</td>
+                <td className="px-4 py-3 text-sm">{assessment.class}</td>
+                <td className="px-4 py-3 text-sm">{assessment.type}</td>
+                <td className="px-4 py-3 text-sm">{assessment.maxMarks}</td>
+                <td className="px-4 py-3 text-sm">{assessment.date}</td>
+                <td className="px-4 py-3 text-sm">
+                  <Badge variant={assessment.status === 'active' ? 'info' : 'success'}>
+                    {assessment.status}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  <Button onClick={() => onSelectAssessment(assessment)} variant="ghost" className="text-xs">
+                    Enter Grades
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create Assessment" size="lg">
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Assessment Title"
+            value={newAssessment.title}
+            onChange={(e) => setNewAssessment({ ...newAssessment, title: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <select
+            value={newAssessment.subject}
+            onChange={(e) => setNewAssessment({ ...newAssessment, subject: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select
+            value={newAssessment.class}
+            onChange={(e) => setNewAssessment({ ...newAssessment, class: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <div className="grid grid-cols-2 gap-4">
+            <select
+              value={newAssessment.type}
+              onChange={(e) => setNewAssessment({ ...newAssessment, type: e.target.value })}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+              <option>FA</option>
+              <option>SA</option>
+              <option>Unit Test</option>
+            </select>
+            <input
+              type="number"
+              placeholder="Max Marks"
+              value={newAssessment.maxMarks}
+              onChange={(e) => setNewAssessment({ ...newAssessment, maxMarks: e.target.value })}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+          </div>
+          <input
+            type="date"
+            value={newAssessment.date}
+            onChange={(e) => setNewAssessment({ ...newAssessment, date: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowCreateModal(false)} className="flex-1">Cancel</Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (newAssessment.title && newAssessment.date) {
+                  dispatch({
+                    type: 'ADD_ASSESSMENT',
+                    payload: {
+                      id: state.assessments.length + 1,
+                      ...newAssessment,
+                      status: 'active'
+                    }
+                  });
+                  setShowCreateModal(false);
+                  setNewAssessment({ title: '', subject: 'Mathematics', class: '10-A', type: 'FA', maxMarks: '50', date: '' });
+                }
+              }}
+              className="flex-1"
+            >
+              Create
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+function GradeEntry({ assessment, state, dispatch, onBack }) {
+  const studentsInClass = state.students.filter(s => s.class === assessment.class);
+  const [grades, setGrades] = useState({});
+
+  const calculateGrade = (marks, maxMarks) => {
+    const percentage = (marks / maxMarks) * 100;
+    if (percentage > 90) return 'A1';
+    if (percentage > 80) return 'A2';
+    if (percentage > 70) return 'B1';
+    if (percentage > 60) return 'B2';
+    if (percentage > 50) return 'C1';
+    if (percentage > 40) return 'C2';
+    return 'D';
+  };
+
+  const stats = {
+    average: studentsInClass.length > 0 ? (Object.values(grades).reduce((a, b) => a + (b || 0), 0) / studentsInClass.length).toFixed(1) : 0,
+    highest: studentsInClass.length > 0 ? Math.max(...Object.values(grades).map(g => g || 0)) : 0,
+    lowest: studentsInClass.length > 0 ? Math.min(...Object.values(grades).filter(g => g).map(g => g || 0)) : 0,
+    passPercent: studentsInClass.length > 0 ? ((Object.values(grades).filter(g => g && g >= (assessment.maxMarks * 0.5)).length / studentsInClass.length) * 100).toFixed(1) : 0
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Button onClick={onBack} variant="ghost" className="mb-4">← Back to Assessments</Button>
+        <h1 className="text-3xl font-bold">{assessment.title}</h1>
+        <p className="text-gray-600 text-sm mt-1">{assessment.subject} • {assessment.class} • Max Marks: {assessment.maxMarks}</p>
+      </div>
+
+      <div className="grid grid-cols-4 gap-4">
+        <Card className="p-4">
+          <p className="text-xs text-gray-600 font-medium">Average</p>
+          <p className="text-2xl font-bold">{stats.average}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs text-gray-600 font-medium">Highest</p>
+          <p className="text-2xl font-bold">{stats.highest}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs text-gray-600 font-medium">Lowest</p>
+          <p className="text-2xl font-bold">{stats.lowest}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs text-gray-600 font-medium">Pass %</p>
+          <p className="text-2xl font-bold">{stats.passPercent}%</p>
+        </Card>
+      </div>
+
+      <Card className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Roll No</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Student Name</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Marks ({assessment.maxMarks})</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">Grade</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {studentsInClass.map(student => {
+              const mark = grades[student.id] || 0;
+              const grade = mark > 0 ? calculateGrade(mark, assessment.maxMarks) : '-';
+              return (
+                <tr key={student.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm">{student.rollNo}</td>
+                  <td className="px-4 py-3 text-sm font-medium">{student.name}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <input
+                      type="number"
+                      min="0"
+                      max={assessment.maxMarks}
+                      value={mark}
+                      onChange={(e) => setGrades({ ...grades, [student.id]: parseInt(e.target.value) || 0 })}
+                      className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <Badge variant={grade === '-' ? 'gray' : 'success'}>{grade}</Badge>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Card>
+
+      <div className="flex gap-3">
+        <Button variant="outline" className="flex-1">Save Draft</Button>
+        <Button variant="primary" className="flex-1" onClick={() => {
+          dispatch({ type: 'SAVE_GRADES', payload: { assessmentId: assessment.id, studentGrades: grades } });
+          onBack();
+        }}>
+          Publish Grades
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SchoolCalendar({ state, dispatch }) {
+  const [selectedMonth, setSelectedMonth] = useState(3);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [newEvent, setNewEvent] = useState({ title: '', type: 'event', date: 1, description: '' });
+
+  const daysInMonth = new Date(2026, selectedMonth, 0).getDate();
+  const firstDay = new Date(2026, selectedMonth - 1, 1).getDay();
+  const daysInWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Calendar</h1>
+        <Button onClick={() => setShowEventModal(true)} variant="primary">
+          Add Event
+        </Button>
+      </div>
+
+      <Card className="p-6">
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">March 2026</h2>
+            <div className="flex gap-2">
+              <Button variant="outline" className="text-xs px-2 py-1">←</Button>
+              <Button variant="outline" className="text-xs px-2 py-1">→</Button>
+            </div>
+          </div>
+
+          <div className="mb-2 flex gap-1 justify-between text-xs font-medium mb-4">
+            {daysInWeek.map(d => <div key={d} className="w-14 text-center">{d}</div>)}
+          </div>
+
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+            {Array.from({ length: firstDay }).map((_, idx) => <div key={`empty-${idx}`} className="h-20"></div>)}
+            {Array.from({ length: daysInMonth }).map((_, day) => {
+              const dayEvents = state.calendarEvents.filter(e => e.date === day + 1);
+              const typeColors = { exam: 'bg-red-100 text-red-700', holiday: 'bg-green-100 text-green-700', event: 'bg-blue-100 text-blue-700', meeting: 'bg-yellow-100 text-yellow-700' };
+              return (
+                <div key={day} className="h-20 bg-white border border-gray-200 rounded p-2 text-xs">
+                  <p className="font-semibold text-gray-800">{day + 1}</p>
+                  {dayEvents.map(event => (
+                    <div key={event.id} className={`${typeColors[event.type]} text-xs px-1 py-0.5 rounded mt-1 truncate`}>
+                      {event.title}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 pt-4 mt-4">
+          <h3 className="font-semibold mb-3">Legend</h3>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-200 rounded"></div><span>Exam</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-green-200 rounded"></div><span>Holiday</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-200 rounded"></div><span>Event</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-200 rounded"></div><span>Meeting</span></div>
+          </div>
+        </div>
+      </Card>
+
+      <Modal isOpen={showEventModal} onClose={() => setShowEventModal(false)} title="Add Event" size="md">
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Event Title"
+            value={newEvent.title}
+            onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <select
+            value={newEvent.type}
+            onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="event">Event</option>
+            <option value="exam">Exam</option>
+            <option value="holiday">Holiday</option>
+            <option value="meeting">Meeting</option>
+          </select>
+          <input
+            type="number"
+            min="1"
+            max="31"
+            placeholder="Date (1-31)"
+            value={newEvent.date}
+            onChange={(e) => setNewEvent({ ...newEvent, date: parseInt(e.target.value) })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          />
+          <textarea
+            placeholder="Description"
+            value={newEvent.description}
+            onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm h-20"
+          />
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowEventModal(false)} className="flex-1">Cancel</Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (newEvent.title && newEvent.date) {
+                  dispatch({
+                    type: 'ADD_EVENT',
+                    payload: {
+                      id: state.calendarEvents.length + 1,
+                      title: newEvent.title,
+                      type: newEvent.type,
+                      date: newEvent.date,
+                      color: newEvent.type === 'exam' ? 'red' : newEvent.type === 'holiday' ? 'green' : newEvent.type === 'meeting' ? 'yellow' : 'blue'
+                    }
+                  });
+                  setShowEventModal(false);
+                  setNewEvent({ title: '', type: 'event', date: 1, description: '' });
+                }
+              }}
+              className="flex-1"
+            >
+              Add Event
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+function SchoolReports({ state }) {
+  const [reportType, setReportType] = useState('attendance');
+  const [dateRange, setDateRange] = useState({ start: '2026-03-01', end: '2026-03-24' });
+  const [selectedClass, setSelectedClass] = useState('10-A');
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">Reports</h1>
+
+      <Card className="p-6">
+        <div className="flex gap-2 mb-4 flex-wrap">
+          {['Attendance', 'Academic', 'Class-wise'].map(type => (
+            <Button
+              key={type}
+              onClick={() => setReportType(type.toLowerCase())}
+              variant={reportType === type.toLowerCase() ? 'primary' : 'outline'}
+              className="text-sm px-3 py-1"
+            >
+              {type}
+            </Button>
+          ))}
+        </div>
+
+        {reportType === 'attendance' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">From Date</label>
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">To Date</label>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Class</label>
+                <select
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  {CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-sm font-semibold mb-3">Attendance Summary: {dateRange.start} to {dateRange.end}</p>
+              <table className="w-full text-xs">
+                <thead className="border-b border-gray-300">
+                  <tr>
+                    <th className="text-left py-2">Date</th>
+                    <th className="text-left py-2">Present</th>
+                    <th className="text-left py-2">Absent</th>
+                    <th className="text-left py-2">Late</th>
+                    <th className="text-left py-2">Avg %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 7 }).map((_, idx) => (
+                    <tr key={idx} className="border-b border-gray-100">
+                      <td className="py-2">2026-03-{String(idx + 18).padStart(2, '0')}</td>
+                      <td>28</td>
+                      <td>1</td>
+                      <td>1</td>
+                      <td>93.3%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {reportType === 'academic' && (
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-sm font-semibold mb-3">Subject-wise Performance</p>
+              <table className="w-full text-xs">
+                <thead className="border-b border-gray-300">
+                  <tr>
+                    <th className="text-left py-2">Subject</th>
+                    <th className="text-left py-2">Pass %</th>
+                    <th className="text-left py-2">Avg Score</th>
+                    <th className="text-left py-2">Grade A</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SUBJECTS.map((subject, idx) => (
+                    <tr key={subject} className="border-b border-gray-100">
+                      <td className="py-2">{subject}</td>
+                      <td>{88 + Math.random() * 10 | 0}%</td>
+                      <td>{75 + Math.random() * 15 | 0}</td>
+                      <td>{30 + Math.random() * 30 | 0}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {reportType === 'class-wise' && (
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-sm font-semibold mb-3">Class-wise Comparison</p>
+              <table className="w-full text-xs">
+                <thead className="border-b border-gray-300">
+                  <tr>
+                    <th className="text-left py-2">Class</th>
+                    <th className="text-left py-2">Students</th>
+                    <th className="text-left py-2">Avg Attendance</th>
+                    <th className="text-left py-2">Avg GPA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CLASSES.map(cls => {
+                    const classStudents = state.students.filter(s => s.class === cls);
+                    return (
+                      <tr key={cls} className="border-b border-gray-100">
+                        <td className="py-2">{cls}</td>
+                        <td>{classStudents.length}</td>
+                        <td>{92 + Math.random() * 5 | 0}%</td>
+                        <td>{8 + Math.random() * 1 | 0}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <Button variant="primary" className="w-full mt-4">Export as CSV</Button>
+      </Card>
+    </div>
+  );
+}
+
+function SchoolSettings({ state }) {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">Settings</h1>
+
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">School Information</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600">School Name</p>
+            <p className="font-medium">Delhi Public School</p>
+          </div>
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600">UDISE Code</p>
+            <p className="font-medium">07070100123</p>
+          </div>
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600">Board</p>
+            <p className="font-medium">CBSE</p>
+          </div>
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600">Address</p>
+            <p className="font-medium">New Delhi, India</p>
+          </div>
+          <div className="flex justify-between">
+            <p className="text-gray-600">Principal</p>
+            <p className="font-medium">Priya Patel</p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">APAAR Integration</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600">Status</p>
+            <Badge variant="success">Connected</Badge>
+          </div>
+          <div className="flex justify-between pb-2 border-b border-gray-100">
+            <p className="text-gray-600">Last Synced</p>
+            <p className="font-medium">2 hours ago</p>
+          </div>
+          <div className="flex justify-between">
+            <p className="text-gray-600">Students Reconciled</p>
+            <p className="font-medium">1,234 matched, 12 pending</p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">User Management</h3>
+        <div className="space-y-2">
+          <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+            <div>
+              <p className="font-medium">Priya Patel</p>
+              <p className="text-xs text-gray-500">Principal</p>
+            </div>
+            <Badge variant="success">Active</Badge>
+          </div>
+          <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+            <div>
+              <p className="font-medium">Rajesh Kumar</p>
+              <p className="text-xs text-gray-500">Admin</p>
+            </div>
+            <Badge variant="success">Active</Badge>
+          </div>
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-medium">Anjali Singh</p>
+              <p className="text-xs text-gray-500">Staff</p>
+            </div>
+            <Badge variant="warning">Inactive</Badge>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">Recent Activities</h3>
+        <div className="space-y-2 text-sm">
+          <div className="pb-2 border-b border-gray-100">
+            <p className="font-medium">Attendance marked - Class 10-A</p>
+            <p className="text-xs text-gray-500">Priya Patel • 2 hours ago</p>
+          </div>
+          <div className="pb-2 border-b border-gray-100">
+            <p className="font-medium">New student enrolled</p>
+            <p className="text-xs text-gray-500">Rajesh Kumar • 5 hours ago</p>
+          </div>
+          <div>
+            <p className="font-medium">Report generated</p>
+            <p className="text-xs text-gray-500">Priya Patel • 1 day ago</p>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================================================
+// AUTH COMPONENTS
+// ============================================================================
+
+function LoginPage({ onLogin, userType }) {
+  const [step, setStep] = useState('phone');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+
+  const handleSendOTP = () => {
+    if (phone.match(/^\d{10}$/)) {
+      setStep('otp');
+    }
+  };
+
+  const handleVerifyOTP = () => {
+    if (otp.length === 6) {
+      const user = userType === 'student'
+        ? { name: 'Aarav Sharma', id: 1, type: 'student', apaarId: '1234-5678-9012' }
+        : { name: 'Priya Patel', id: 1, type: 'principal', organization: 'Delhi Public School' };
+      onLogin(user, userType);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-primary to-secondary flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <div className="p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-primary mb-2">EKAI</h1>
+            <p className="text-gray-600 text-sm">
+              {userType === 'student' ? 'Student Hub' : 'School Hub'}
+            </p>
+          </div>
+
+          {step === 'phone' ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Phone Number</label>
+                <input
+                  type="tel"
+                  placeholder="10-digit mobile number"
+                  maxLength="10"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <p className="text-xs text-gray-500 mt-1">You'll receive an OTP on this number</p>
+              </div>
+              <Button
+                onClick={handleSendOTP}
+                disabled={phone.length !== 10}
+                variant="primary"
+                className="w-full"
+              >
+                Send OTP
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">OTP</label>
+                <input
+                  type="text"
+                  placeholder="6-digit OTP"
+                  maxLength="6"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-center text-2xl tracking-widest"
+                />
+              </div>
+              <Button
+                onClick={handleVerifyOTP}
+                disabled={otp.length !== 6}
+                variant="primary"
+                className="w-full"
+              >
+                Verify OTP
+              </Button>
+              <Button
+                onClick={() => { setStep('phone'); setPhone(''); setOtp(''); }}
+                variant="outline"
+                className="w-full"
+              >
+                Change Phone Number
+              </Button>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function LandingPage({ onSelectHub }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 p-4">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12 pt-12">
+          <h1 className="text-5xl font-bold text-primary mb-4">EKAI Platform</h1>
+          <p className="text-xl text-gray-600 mb-2">Digital Infrastructure for Academic Improvement</p>
+          <p className="text-gray-500">Comprehensive student and school management system</p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8 mb-12">
+          <Card className="p-8 cursor-pointer hover:shadow-lg transition-shadow">
+            <div className="text-center">
+              <div className="text-6xl mb-4">👨‍🎓</div>
+              <h2 className="text-2xl font-bold mb-3">Student Hub</h2>
+              <p className="text-gray-600 mb-6">Access your grades, attendance, documents, and manage consents with APAAR</p>
+              <Button onClick={() => onSelectHub('student')} variant="primary" className="w-full">
+                Enter Student Hub
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="p-8 cursor-pointer hover:shadow-lg transition-shadow">
+            <div className="text-center">
+              <div className="text-6xl mb-4">🏫</div>
+              <h2 className="text-2xl font-bold mb-3">School Hub</h2>
+              <p className="text-gray-600 mb-6">Manage students, teachers, attendance, assessments and generate reports</p>
+              <Button onClick={() => onSelectHub('school')} variant="secondary" className="w-full">
+                Enter School Hub
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        <Card className="p-8 bg-blue-50">
+          <h3 className="text-lg font-semibold mb-4">Platform Features</h3>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div>
+              <p className="font-semibold mb-2">📊 Real-time Analytics</p>
+              <p className="text-sm text-gray-600">Track grades, attendance and performance metrics</p>
+            </div>
+            <div>
+              <p className="font-semibold mb-2">🔐 APAAR Integration</p>
+              <p className="text-sm text-gray-600">Unified student identity and consent management</p>
+            </div>
+            <div>
+              <p className="font-semibold mb-2">📱 Mobile-First Design</p>
+              <p className="text-sm text-gray-600">Optimized for all devices</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// MAIN APP
+// ============================================================================
+
+function StudentApp({ state, dispatch, onLogout }) {
+  const [currentPage, setCurrentPage] = useState('home');
+
+  const pages = {
+    home: <StudentDashboard state={state} />,
+    academics: <StudentAcademics state={state} />,
+    attendance: <StudentAttendance state={state} />,
+    documents: <StudentDocuments state={state} dispatch={dispatch} />,
+    profile: <StudentProfile state={state} />
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-24">
+      <div className="max-w-md mx-auto p-4">
+        <div className="flex justify-between items-center mb-6 pt-4">
+          <h1 className="text-2xl font-bold">EKAI Student</h1>
+          <Button onClick={onLogout} variant="ghost" className="text-xs">Logout</Button>
+        </div>
+
+        {pages[currentPage]}
+      </div>
+
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg max-w-md mx-auto">
+        <div className="flex justify-around">
+          {[
+            { id: 'home', label: 'Home', icon: '🏠' },
+            { id: 'academics', label: 'Academics', icon: '📊' },
+            { id: 'attendance', label: 'Attendance', icon: '✓' },
+            { id: 'documents', label: 'Documents', icon: '📄' },
+            { id: 'profile', label: 'Profile', icon: '👤' }
+          ].map(item => (
+            <button
+              key={item.id}
+              onClick={() => setCurrentPage(item.id)}
+              className={`flex-1 py-3 text-center text-xs font-medium transition-colors ${
+                currentPage === item.id
+                  ? 'text-primary border-t-2 border-t-primary'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="text-lg">{item.icon}</div>
+              <div className="text-xs">{item.label}</div>
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+function SchoolApp({ state, dispatch, onLogout }) {
+  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [selectedAssessment, setSelectedAssessment] = useState(null);
+
+  const pages = {
+    dashboard: <SchoolDashboard state={state} />,
+    students: <SchoolStudents state={state} dispatch={dispatch} />,
+    teachers: <SchoolTeachers state={state} dispatch={dispatch} />,
+    attendance: <SchoolAttendance state={state} dispatch={dispatch} />,
+    assessments: <SchoolAssessments state={state} dispatch={dispatch} onSelectAssessment={setSelectedAssessment} />,
+    gradeEntry: selectedAssessment ? <GradeEntry assessment={selectedAssessment} state={state} dispatch={dispatch} onBack={() => setSelectedAssessment(null)} /> : null,
+    calendar: <SchoolCalendar state={state} dispatch={dispatch} />,
+    reports: <SchoolReports state={state} />,
+    settings: <SchoolSettings state={state} />
+  };
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'students', label: 'Students', icon: '👥' },
+    { id: 'teachers', label: 'Teachers', icon: '🧑‍🏫' },
+    { id: 'attendance', label: 'Attendance', icon: '✓' },
+    { id: 'assessments', label: 'Assessments', icon: '📝' },
+    { id: 'calendar', label: 'Calendar', icon: '📅' },
+    { id: 'reports', label: 'Reports', icon: '📈' },
+    { id: 'settings', label: 'Settings', icon: '⚙️' }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <div className="w-64 bg-white border-r border-gray-200 shadow-sm fixed h-screen overflow-y-auto">
+        <div className="p-6">
+          <h1 className="text-2xl font-bold text-primary mb-2">EKAI</h1>
+          <p className="text-sm text-gray-600">School Hub</p>
+        </div>
+
+        <nav className="space-y-1 px-4">
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setCurrentPage(item.id);
+                setSelectedAssessment(null);
+              }}
+              className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                currentPage === item.id
+                  ? 'bg-primary text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <span className="mr-3">{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="p-4 mt-4 border-t border-gray-200">
+          <Button onClick={onLogout} variant="outline" className="w-full text-sm">
+            Logout
+          </Button>
+        </div>
+      </div>
+
+      <div className="ml-64 flex-1">
+        <div className="p-8">
+          {selectedAssessment ? pages.gradeEntry : pages[currentPage]}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [state, dispatch] = useReducer(appReducer, INITIAL_STATE);
+  const [selectedHub, setSelectedHub] = useState(null);
+
+  const handleSelectHub = (hubType) => {
+    setSelectedHub(hubType);
+  };
+
+  const handleLogin = (user, userType) => {
+    dispatch({ type: 'LOGIN', payload: { user, userType } });
+  };
+
+  const handleLogout = () => {
+    dispatch({ type: 'LOGOUT' });
+    setSelectedHub(null);
+  };
+
+  if (!state.currentUser) {
+    if (!selectedHub) {
+      return <LandingPage onSelectHub={handleSelectHub} />;
+    }
+    return <LoginPage onLogin={handleLogin} userType={selectedHub} />;
+  }
+
+  return state.userType === 'student'
+    ? <StudentApp state={state} dispatch={dispatch} onLogout={handleLogout} />
+    : <SchoolApp state={state} dispatch={dispatch} onLogout={handleLogout} />;
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+  </script>
+</body>
+</html>
