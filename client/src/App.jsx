@@ -43,6 +43,15 @@ const queryClient = new QueryClient({
  * Main App component with routing
  */
 function App() {
+  // Handle 404.html redirect for GitHub Pages
+  React.useEffect(() => {
+    const redirect = sessionStorage.redirect
+    if (redirect) {
+      delete sessionStorage.redirect
+      window.history.replaceState(null, null, redirect)
+    }
+  }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

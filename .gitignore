@@ -72,3 +72,4 @@ temp/
 .parcel-cache/
 dist-ssr/
 *.local
+client/temp-ekai

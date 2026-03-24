@@ -143,10 +143,10 @@ export const DataTable = ({
               <button
                 key={i}
                 onClick={() => setCurrentPage(i)}
-                className={`px-3 py-2 rounded ${
+                className={`px-3 py-2 rounded transition-colors ${
                   currentPage === i
                     ? 'bg-primary-700 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 {i + 1}

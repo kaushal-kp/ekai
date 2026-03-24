@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Header } from '../../components/shared/Header'
 import { BottomNav } from '../../components/shared/BottomNav'
 import { Card } from '../../components/shared/Card'
+import { AttendanceLegend } from '../../components/shared/AttendanceLegend'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, isSameDay } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -142,23 +143,8 @@ export default function StudentAttendance() {
           </div>
 
           {/* Legend */}
-          <div className="mt-6 pt-6 border-t border-gray-200 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-success rounded"></div>
-              <span className="text-sm text-gray-600">Present</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-danger rounded"></div>
-              <span className="text-sm text-gray-600">Absent</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-accent-500 rounded"></div>
-              <span className="text-sm text-gray-600">Late</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gray-300 rounded"></div>
-              <span className="text-sm text-gray-600">Holiday</span>
-            </div>
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <AttendanceLegend />
           </div>
         </Card>
       </main>

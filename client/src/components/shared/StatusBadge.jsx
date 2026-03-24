@@ -13,12 +13,12 @@ export const StatusBadge = ({ status, type = 'attendance' }) => {
     displayText = status?.charAt(0).toUpperCase() + status?.slice(1)
   } else if (type === 'consent') {
     const consentColors = {
-      [CONSENT_STATUS.ACTIVE]: { bg: 'bg-green-100', text: 'text-success' },
-      [CONSENT_STATUS.PENDING]: { bg: 'bg-accent-100', text: 'text-accent-700' },
-      [CONSENT_STATUS.REVOKED]: { bg: 'bg-red-100', text: 'text-danger' },
-      [CONSENT_STATUS.EXPIRED]: { bg: 'bg-gray-100', text: 'text-gray-700' }
+      [CONSENT_STATUS.ACTIVE]: { bg: 'badge-success', text: 'text-success' },
+      [CONSENT_STATUS.PENDING]: { bg: 'badge-warning', text: 'text-accent-700' },
+      [CONSENT_STATUS.REVOKED]: { bg: 'badge-danger', text: 'text-danger' },
+      [CONSENT_STATUS.EXPIRED]: { bg: 'badge-neutral', text: 'text-gray-700' }
     }
-    const colors = consentColors[status] || { bg: 'bg-gray-100', text: 'text-gray-700' }
+    const colors = consentColors[status] || { bg: 'badge-neutral', text: 'text-gray-700' }
     bgColor = colors.bg
     textColor = colors.text
     displayText = status?.charAt(0).toUpperCase() + status?.slice(1)

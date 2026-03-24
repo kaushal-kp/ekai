@@ -206,8 +206,8 @@ export default function Login() {
           {/* APAAR Consent Step */}
           {step === 'apaar' && (
             <form onSubmit={handleAPAARVerify} className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-blue-900">
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-primary-900">
                   <span className="font-semibold">APAAR Integration:</span> Grant EKAI access to your educational data with granular consent management.
                 </p>
               </div>

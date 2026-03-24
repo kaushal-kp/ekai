@@ -22,9 +22,9 @@ export default function SchoolDashboard() {
   })
 
   const stats = [
-    { icon: Users, label: 'Total Students', value: '1,234', color: 'text-blue-700', bg: 'bg-blue-100' },
-    { icon: Users, label: 'Total Teachers', value: '87', color: 'text-green-700', bg: 'bg-green-100' },
-    { icon: TrendingUp, label: "Today's Attendance", value: '92%', color: 'text-primary-700', bg: 'bg-primary-100' },
+    { icon: Users, label: 'Total Students', value: '1,234', color: 'text-primary-700', bg: 'bg-primary-100' },
+    { icon: Users, label: 'Total Teachers', value: '87', color: 'text-secondary-700', bg: 'bg-secondary-100' },
+    { icon: TrendingUp, label: "Today's Attendance", value: '92%', color: 'text-success', bg: 'bg-green-50' },
     { icon: BarChart3, label: 'Active Assessments', value: '12', color: 'text-accent-600', bg: 'bg-accent-100' }
   ]
 
@@ -96,7 +96,7 @@ export default function SchoolDashboard() {
                   <button className="w-full text-left px-4 py-3 bg-accent-50 text-accent-600 rounded-lg hover:bg-accent-100 font-medium">
                     Enroll Student
                   </button>
-                  <button className="w-full text-left px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium">
+                  <button className="w-full text-left px-4 py-3 bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100 font-medium">
                     Generate Report
                   </button>
                 </div>

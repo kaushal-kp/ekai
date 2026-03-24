@@ -45,7 +45,7 @@ export const Header = ({ title = '', onMenuToggle = null, showMenu = true }) => 
               <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 p-4 z-50">
                 <h3 className="font-semibold text-gray-900 mb-3">Notifications</h3>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  <div className="p-3 bg-blue-50 rounded border border-blue-200">
+                  <div className="p-3 bg-primary-50 rounded border border-primary-200">
                     <p className="text-sm font-medium text-gray-900">New grade posted</p>
                     <p className="text-xs text-gray-600 mt-1">Mathematics - Formative 1</p>
                   </div>

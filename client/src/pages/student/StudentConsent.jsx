@@ -68,8 +68,8 @@ export default function StudentConsent() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Info Box */}
-        <Card className="mb-8 bg-blue-50 border-blue-200">
-          <p className="text-sm text-blue-900">
+        <Card className="mb-8 bg-primary-50 border-primary-200">
+          <p className="text-sm text-primary-900">
             <span className="font-semibold">APAAR Consent Management:</span> Control who can access your educational data. You can revoke consent at any time.
           </p>
         </Card>

@@ -178,13 +178,13 @@ export default function StudentProfile() {
         </Card>
 
         {/* APAAR Status */}
-        <Card className="bg-green-50 border-green-200">
+        <Card className="bg-secondary-50 border-secondary-200">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-green-900 mb-1">APAAR Status</h3>
-              <p className="text-sm text-green-700">Your profile is successfully linked with APAAR</p>
+              <h3 className="font-semibold text-secondary-900 mb-1">APAAR Status</h3>
+              <p className="text-sm text-secondary-700">Your profile is successfully linked with APAAR</p>
             </div>
-            <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+            <div className="px-3 py-1 bg-success bg-opacity-10 text-success rounded-full text-sm font-semibold">
               Linked
             </div>
           </div>
