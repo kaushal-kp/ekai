@@ -1,0 +1,74 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# Build outputs
+/dist
+/build
+/out
+/.next
+/coverage
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+*.sublime-workspace
+.sublime-project
+
+# Testing
+/test-results
+/coverage
+.nyc_output
+jest.config.js
+
+# Logging
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Node version manager
+.nvmrc
+
+# Misc
+.cache/
+.parcel-cache/
+dist-ssr/
+*.local

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ekai_dev}
+
+  redis:
+    command: redis-server --appendonly yes
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    environment:
+      NODE_ENV: development
+      DEBUG: "ekai:*"
+    volumes:
+      - ./server/src:/app/src
+      - ./server/package.json:/app/package.json
+    ports:
+      - "5000:5000"
+      - "9229:9229"
+    command: npm run dev
+
+  client:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.client
+    environment:
+      VITE_API_URL: http://localhost:5000
+    volumes:
+      - ./client/src:/app/src
+      - ./client/public:/app/public
+      - ./client/package.json:/app/package.json
+      - ./client/vite.config.ts:/app/vite.config.ts
+    ports:
+      - "3000:3000"
+    command: npm run dev
+    environment:
+      - VITE_API_URL=http://localhost:5000
