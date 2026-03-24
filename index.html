@@ -2076,7 +2076,7 @@ function SchoolApp({ state, dispatch, onLogout }) {
   );
 }
 
-export default function App() {
+function App() {
   const [state, dispatch] = useReducer(appReducer, INITIAL_STATE);
   const [selectedHub, setSelectedHub] = useState(null);
 
